@@ -123,28 +123,38 @@ class BlockSection extends ConsumerWidget {
       width: double.infinity,
       color: Theme.of(context).colorScheme.secondaryContainer,
       padding: const EdgeInsets.all(16),
-      child: Center(
-        child: AspectRatio(
-          aspectRatio: 4 / 3,
-          child: GridView.builder(
-            physics: const NeverScrollableScrollPhysics(),
-            gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-              crossAxisCount: 4,
-              mainAxisSpacing: 0,
-              crossAxisSpacing: 0,
-            ),
-            itemCount: 12,
-            itemBuilder: (context, index) {
-              final label = gridData[index];
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          final availableHeight = constraints.maxHeight * 2 / 3;
+          final cellSize = availableHeight / 3;
+          final gridWidth = cellSize * 4;
+          return Align(
+            alignment: Alignment.centerRight,
+            child: SizedBox(
+              width: gridWidth,
+              height: availableHeight,
+              child: GridView.builder(
+                physics: const NeverScrollableScrollPhysics(),
+                gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                  crossAxisCount: 4,
+                  mainAxisSpacing: 0,
+                  crossAxisSpacing: 0,
+                  childAspectRatio: 1,
+                ),
+                itemCount: 12,
+                itemBuilder: (context, index) {
+                  final label = gridData[index];
 
-              if (label != null) {
-                return DraggableBlockButton(label: label, index: index);
-              } else {
-                return DropTargetDot(index: index);
-              }
-            },
-          ),
-        ),
+                  if (label != null) {
+                    return DraggableBlockButton(label: label, index: index);
+                  } else {
+                    return DropTargetDot(index: index);
+                  }
+                },
+              ),
+            ),
+          );
+        },
       ),
     );
   }
