@@ -1,15 +1,27 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-class CounterNotifier extends Notifier<int> {
+class GridNotifier extends Notifier<List<String?>> {
   @override
-  int build() => 0;
+  List<String?> build() => [
+    'W', null, null, null,
+    null, 'T', null, null,
+    null, null, null, null,
+  ];
 
-  void increment() => state++;
+  void moveBlock(int fromIndex, int toIndex) {
+    if (fromIndex == toIndex) return;
+    if (state[toIndex] != null) return;
+
+    final newState = [...state];
+    newState[toIndex] = newState[fromIndex];
+    newState[fromIndex] = null;
+    state = newState;
+  }
 }
 
-final counterProvider = NotifierProvider<CounterNotifier, int>(
-  CounterNotifier.new,
+final gridProvider = NotifierProvider<GridNotifier, List<String?>>(
+  GridNotifier.new,
 );
 
 void main() {
@@ -22,79 +34,247 @@ class MyApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      title: 'Flutter Demo',
+      title: 'Layout Demo',
       theme: ThemeData(
-        colorScheme: ColorScheme.fromSeed(seedColor: Colors.deepPurple),
+        colorScheme: ColorScheme.fromSeed(seedColor: Colors.blue),
+        useMaterial3: true,
       ),
-      home: const MyHomePage(title: 'Flutter Demo Home Page'),
+      home: const MainPage(),
     );
   }
 }
 
-class MyHomePage extends ConsumerStatefulWidget {
-  const MyHomePage({super.key, required this.title});
-
-  final String title;
-
-  @override
-  ConsumerState<MyHomePage> createState() => _MyHomePageState();
-}
-
-class _MyHomePageState extends ConsumerState<MyHomePage> {
-  Offset _buttonPosition = const Offset(100, 100);
+class MainPage extends StatelessWidget {
+  const MainPage({super.key});
 
   @override
   Widget build(BuildContext context) {
-    final counter = ref.watch(counterProvider);
-
     return Scaffold(
-      appBar: AppBar(
-        backgroundColor: Theme.of(context).colorScheme.inversePrimary,
-        title: Text(widget.title),
-      ),
-      body: Stack(
+      body: Column(
         children: [
-          Center(
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                const Text('You have pushed the button this many times:'),
-                Text(
-                  '$counter',
-                  style: Theme.of(context).textTheme.headlineMedium,
-                ),
-              ],
-            ),
+          Expanded(
+            flex: 15,
+            child: HeaderSection(),
           ),
-          Positioned(
-            left: _buttonPosition.dx,
-            top: _buttonPosition.dy,
-            child: Draggable<String>(
-              data: 'button',
-              feedback: FloatingActionButton(
-                onPressed: () {},
-                child: const Icon(Icons.add),
-              ),
-              childWhenDragging: FloatingActionButton(
-                onPressed: () {},
-                backgroundColor: Colors.grey,
-                child: const Icon(Icons.add),
-              ),
-              onDragEnd: (details) {
-                setState(() {
-                  final renderBox = context.findRenderObject() as RenderBox;
-                  final localPosition = renderBox.globalToLocal(details.offset);
-                  _buttonPosition = localPosition;
-                });
-              },
-              child: FloatingActionButton(
-                onPressed: () => ref.read(counterProvider.notifier).increment(),
-                tooltip: 'Increment',
-                child: const Icon(Icons.add),
-              ),
-            ),
+          Expanded(
+            flex: 35,
+            child: ConsoleSection(),
+          ),
+          Expanded(
+            flex: 35,
+            child: BlockSection(),
+          ),
+          Expanded(
+            flex: 15,
+            child: FooterSection(),
           ),
         ],
+      ),
+    );
+  }
+}
+
+class HeaderSection extends StatelessWidget {
+  const HeaderSection({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: double.infinity,
+      color: Theme.of(context).colorScheme.primaryContainer,
+      child: Center(
+        child: Text(
+          'Header (15%)',
+          style: Theme.of(context).textTheme.headlineSmall,
+        ),
+      ),
+    );
+  }
+}
+
+class ConsoleSection extends StatelessWidget {
+  const ConsoleSection({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: double.infinity,
+      color: Colors.black87,
+      child: Center(
+        child: Text(
+          'Console (35%)',
+          style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+            color: Colors.greenAccent,
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class BlockSection extends ConsumerWidget {
+  const BlockSection({super.key});
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final gridData = ref.watch(gridProvider);
+
+    return Container(
+      width: double.infinity,
+      color: Theme.of(context).colorScheme.secondaryContainer,
+      padding: const EdgeInsets.all(16),
+      child: Center(
+        child: AspectRatio(
+          aspectRatio: 4 / 3,
+          child: GridView.builder(
+            physics: const NeverScrollableScrollPhysics(),
+            gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+              crossAxisCount: 4,
+              mainAxisSpacing: 0,
+              crossAxisSpacing: 0,
+            ),
+            itemCount: 12,
+            itemBuilder: (context, index) {
+              final label = gridData[index];
+
+              if (label != null) {
+                return DraggableBlockButton(label: label, index: index);
+              } else {
+                return DropTargetDot(index: index);
+              }
+            },
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class DraggableBlockButton extends ConsumerWidget {
+  const DraggableBlockButton({
+    super.key,
+    required this.label,
+    required this.index,
+  });
+
+  final String label;
+  final int index;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    return Draggable<int>(
+      data: index,
+      feedback: Material(
+        elevation: 4,
+        child: Container(
+          width: 60,
+          height: 60,
+          decoration: BoxDecoration(
+            border: Border.all(
+              color: Theme.of(context).colorScheme.primary,
+              width: 2,
+            ),
+            color: Theme.of(context).colorScheme.surface,
+          ),
+          child: Center(
+            child: Text(
+              label,
+              style: Theme.of(context).textTheme.headlineMedium?.copyWith(
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+          ),
+        ),
+      ),
+      childWhenDragging: Container(
+        decoration: BoxDecoration(
+          border: Border.all(
+            color: Theme.of(context).colorScheme.outline.withValues(alpha: 0.3),
+            width: 1,
+          ),
+          color: Theme.of(context).colorScheme.surface.withValues(alpha: 0.3),
+        ),
+      ),
+      child: DragTarget<int>(
+        onAcceptWithDetails: (details) {
+          ref.read(gridProvider.notifier).moveBlock(details.data, index);
+        },
+        builder: (context, candidateData, rejectedData) {
+          return Container(
+            decoration: BoxDecoration(
+              border: Border.all(
+                color: Theme.of(context).colorScheme.outline,
+                width: 1,
+              ),
+              color: Theme.of(context).colorScheme.surface,
+            ),
+            child: Center(
+              child: Text(
+                label,
+                style: Theme.of(context).textTheme.headlineMedium?.copyWith(
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+            ),
+          );
+        },
+      ),
+    );
+  }
+}
+
+class DropTargetDot extends ConsumerWidget {
+  const DropTargetDot({super.key, required this.index});
+
+  final int index;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    return DragTarget<int>(
+      onAcceptWithDetails: (details) {
+        ref.read(gridProvider.notifier).moveBlock(details.data, index);
+      },
+      builder: (context, candidateData, rejectedData) {
+        final isHovering = candidateData.isNotEmpty;
+        return Container(
+          decoration: isHovering
+              ? BoxDecoration(
+                  border: Border.all(
+                    color: Theme.of(context).colorScheme.primary,
+                    width: 2,
+                  ),
+                  color: Theme.of(context).colorScheme.primaryContainer,
+                )
+              : null,
+          child: Center(
+            child: Container(
+              width: 8,
+              height: 8,
+              decoration: BoxDecoration(
+                color: Theme.of(context).colorScheme.outline,
+                shape: BoxShape.circle,
+              ),
+            ),
+          ),
+        );
+      },
+    );
+  }
+}
+
+class FooterSection extends StatelessWidget {
+  const FooterSection({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: double.infinity,
+      color: Theme.of(context).colorScheme.tertiaryContainer,
+      child: Center(
+        child: Text(
+          'Footer (15%)',
+          style: Theme.of(context).textTheme.headlineSmall,
+        ),
       ),
     );
   }
