@@ -24,6 +24,28 @@ final gridProvider = NotifierProvider<GridNotifier, List<String?>>(
   GridNotifier.new,
 );
 
+class ConsoleNotifier extends Notifier<List<String>> {
+  @override
+  List<String> build() => [];
+
+  void addMessage(String message) {
+    state = [...state, message];
+  }
+
+  void clear() {
+    state = [];
+  }
+}
+
+final consoleProvider = NotifierProvider<ConsoleNotifier, List<String>>(
+  ConsoleNotifier.new,
+);
+
+const Map<String, String> blockCommands = {
+  'W': 'weather',
+  'T': 'test',
+};
+
 void main() {
   runApp(const ProviderScope(child: MyApp()));
 }
@@ -92,22 +114,39 @@ class HeaderSection extends StatelessWidget {
   }
 }
 
-class ConsoleSection extends StatelessWidget {
+class ConsoleSection extends ConsumerWidget {
   const ConsoleSection({super.key});
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    final messages = ref.watch(consoleProvider);
+
     return Container(
       width: double.infinity,
       color: Colors.black87,
-      child: Center(
-        child: Text(
-          'Console (35%)',
-          style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-            color: Colors.greenAccent,
-          ),
-        ),
-      ),
+      padding: const EdgeInsets.all(16),
+      child: messages.isEmpty
+          ? Center(
+              child: Text(
+                'Console',
+                style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+                  color: Colors.greenAccent.withValues(alpha: 0.5),
+                ),
+              ),
+            )
+          : ListView.builder(
+              itemCount: messages.length,
+              itemBuilder: (context, index) {
+                return Text(
+                  messages[index],
+                  style: const TextStyle(
+                    fontFamily: 'monospace',
+                    fontSize: 14,
+                    color: Colors.greenAccent,
+                  ),
+                );
+              },
+            ),
     );
   }
 }
@@ -210,19 +249,27 @@ class DraggableBlockButton extends ConsumerWidget {
           ref.read(gridProvider.notifier).moveBlock(details.data, index);
         },
         builder: (context, candidateData, rejectedData) {
-          return Container(
-            decoration: BoxDecoration(
-              border: Border.all(
-                color: Theme.of(context).colorScheme.outline,
-                width: 1,
+          return GestureDetector(
+            onTap: () {
+              final command = blockCommands[label];
+              if (command != null) {
+                ref.read(consoleProvider.notifier).addMessage(command);
+              }
+            },
+            child: Container(
+              decoration: BoxDecoration(
+                border: Border.all(
+                  color: Theme.of(context).colorScheme.outline,
+                  width: 1,
+                ),
+                color: Theme.of(context).colorScheme.surface,
               ),
-              color: Theme.of(context).colorScheme.surface,
-            ),
-            child: Center(
-              child: Text(
-                label,
-                style: Theme.of(context).textTheme.headlineMedium?.copyWith(
-                  fontWeight: FontWeight.bold,
+              child: Center(
+                child: Text(
+                  label,
+                  style: Theme.of(context).textTheme.headlineMedium?.copyWith(
+                    fontWeight: FontWeight.bold,
+                  ),
                 ),
               ),
             ),
